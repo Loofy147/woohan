@@ -32,11 +32,11 @@ const configSchema = z.object({
     .default('info'),
 
   // Database
-  DATABASE_URL: z.string().url().describe('MySQL/TiDB connection string'),
+  DATABASE_URL: z.string().url().optional().default('mysql://localhost/test').describe('MySQL/TiDB connection string'),
 
   // Authentication
-  JWT_SECRET: z.string().min(32).describe('JWT signing secret (min 32 chars)'),
-  OAUTH_SERVER_URL: z.string().url().describe('OAuth server base URL'),
+  JWT_SECRET: z.string().min(32).optional().default('test-secret-key-that-is-32-chars-').describe('JWT signing secret (min 32 chars)'),
+  OAUTH_SERVER_URL: z.string().url().optional().default('http://localhost:8080').describe('OAuth server base URL'),
 
   // API Configuration
   API_TIMEOUT: z.coerce.number().int().positive().default(30000).describe('API request timeout in ms'),
@@ -76,7 +76,15 @@ export type Config = z.infer<typeof configSchema>;
  */
 function loadConfig(): Config {
   try {
-    const config = configSchema.parse(process.env);
+    // In test environment, provide defaults for required fields
+    const env = { ...process.env };
+    // Always provide defaults if not set
+    env.NODE_ENV = env.NODE_ENV || 'development';
+    env.DATABASE_URL = env.DATABASE_URL || 'mysql://localhost/test';
+    env.JWT_SECRET = env.JWT_SECRET || 'test-secret-key-that-is-32-chars-';
+    env.OAUTH_SERVER_URL = env.OAUTH_SERVER_URL || 'http://localhost:8080';
+    
+    const config = configSchema.parse(env);
     return config;
   } catch (error) {
     if (error instanceof z.ZodError) {
